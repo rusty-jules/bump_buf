@@ -1,5 +1,5 @@
 use num::{Num, FromPrimitive};
-// Impl Iterator
+// TODO impl Iterator
 
 macro_rules! create_bump_buf {
     ($name:ident, $size:expr) => {
@@ -29,8 +29,8 @@ macro_rules! create_bump_buf {
             }
 
             #[inline]
-            fn get_idx(&self) -> &usize {
-                &self.0
+            fn idx(&self) -> usize {
+                self.0
             }
 
             #[inline]
@@ -57,7 +57,7 @@ macro_rules! create_bump_buf {
 trait BumpBufPrivate<N: Num + FromPrimitive + Copy> {
     fn arr(&self) -> &[N];
     fn arr_mut(&mut self) -> &mut [N]; 
-    fn get_idx(&self) -> &usize;
+    fn idx(&self) -> usize;
     fn reset_idx(&mut self);
     fn increment_idx(&mut self);
     fn past_valid(&self) -> bool;
@@ -107,18 +107,22 @@ pub trait BumpBuf<N: Num + FromPrimitive + Copy>: BumpBufPrivate<N> {
     }
 
     #[inline]
-    fn idx(&self) -> usize {
-        *self.get_idx()
-    }
-
-    #[inline]
     fn len(&self) -> usize {
         self.arr().len()
     }
 
+
+    // TODO needs testing
     fn nth(&self, idx: usize) -> Option<N> {
         if idx >= self.arr().len() || (idx >= self.idx() && !self.past_valid()) { 
             None
+        } else if self.past_valid() {
+            let wrapped_idx = self.idx() as isize - idx as isize;
+            if wrapped_idx >= 0 {
+                Some(self.arr()[idx])
+            } else {
+                Some(self.arr()[self.idx() + idx + 1])
+            }
         } else {
             Some(self.arr()[idx])
         }
