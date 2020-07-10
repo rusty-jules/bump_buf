@@ -1,14 +1,13 @@
 mod bump_buf;
 
 pub use crate::bump_buf::{
-    BumpBuf,
-    // BumpBufNum,
     BumpBufIterator,
     BumpBuf8,
     BumpBuf16,
     BumpBuf32,
     BumpBuf50,
     BumpBuf64,
+    BumpBuf100,
     BumpBuf128,
     BumpBuf250,
     BumpBuf256,

@@ -1,6 +1,3 @@
-use num::{Num, FromPrimitive};
-// TODO impl Iterator
-
 macro_rules! create_bump_buf {
     ($name:ident, $size:expr) => {
         #[derive(Clone)]
@@ -12,7 +9,7 @@ macro_rules! create_bump_buf {
             }
         }
 
-        impl<N: Default + Copy> BumpBufPrivate<N> for $name<N> {
+        impl<N: Default + Copy> $name<N> {
             #[inline]
             fn arr(&self) -> &[N] {
                 &self.1[..]
@@ -47,117 +44,90 @@ macro_rules! create_bump_buf {
             fn past_valid(&self) -> bool {
                 self.2
             }
-        }
 
-        impl<N: Default + Copy> BumpBuf<N> for $name<N> {}
-    };
-}
-// impl<N: Default + Num + FromPrimitive + Copy> BumpBufNum<N> for $name<N> {}
-
-trait BumpBufPrivate<N: Default + Copy> {
-    fn arr(&self) -> &[N];
-    fn arr_mut(&mut self) -> &mut [N]; 
-    fn idx(&self) -> usize;
-    fn reset_idx(&mut self);
-    fn increment_idx(&mut self);
-    fn past_valid(&self) -> bool;
-    fn set_past_valid(&mut self, past_valid: bool);
-}
-
-// pub trait BumpBufNum<N: Default + Num + FromPrimitive + Copy>: BumpBuf<N> {
-//     fn calc_slope(&self) -> Option<N> {
-//         let x2 = if self.past_valid() { 
-//             self.arr().len() - 1
-//         } else if self.idx() > 0 { 
-//             self.idx() - 1
-//         } else { 
-//             return None // cannot divide by zero
-//         };
-
-//         Some((self.recent() - self.last()) / N::from_usize(x2).unwrap()) // x1 always 0 for calc purposes
-//     }
-// }
-
-pub trait BumpBuf<N: Default + Copy>: BumpBufPrivate<N> {
-    fn push(&mut self, val: N) {
-        let idx = self.idx();
-        self.arr_mut()[idx] = val;
-        self.increment_idx();
-        if self.idx() == self.arr().len() {
-            self.reset_idx();
-            self.set_past_valid(true); // Data at idx and above is now valid past data
-        }
-    }
-
-    /// Returns he most recent element in the buffer
-    #[inline]
-    fn recent(&self) -> N {
-        let idx = if self.idx() == 0 {
-            self.arr().len() - 1
-        } else {
-            self.idx() - 1
-        };
-        self.arr()[idx]
-    }
-
-    /// Returns the oldest element in the buffer
-    fn last(&self) -> N {
-        let idx = if self.past_valid() {
-            self.idx()
-        } else {
-            0
-        };
-        self.arr()[idx]
-    }
-
-    /// Returns the second most recent element in the buffer
-    /// Will return a default value if 0 or 1 elements have been pushed
-    fn prev(&self) -> N {
-        let idx = if self.idx() == 0 {
-            self.arr().len() - 2
-        } else if self.idx() == 1 {
-            self.arr().len() - 1
-        } else {
-            self.idx() - 2
-        };
-        self.arr()[idx]
-    }
-
-    #[inline]
-    fn len(&self) -> usize {
-        self.arr().len()
-    }
-
-    // TODO needs testing and is wrong
-    fn nth(&self, idx: usize) -> Option<N> {
-        if idx >= self.arr().len() || (idx >= self.idx() && !self.past_valid()) { 
-            None
-        } else if self.past_valid() {
-            let wrapped_idx = self.idx() as isize - 1 - idx as isize;
-            if wrapped_idx >= 0 {
-                Some(self.arr()[wrapped_idx as usize - 1])
-            } else {
-                Some(self.arr()[self.idx() + idx + 1])
+            /// Add an element on the front of the buffer, evicting the last element
+            pub fn push(&mut self, val: N) {
+                let idx = self.idx();
+                self.arr_mut()[idx] = val;
+                self.increment_idx();
+                if self.idx() == self.arr().len() {
+                    self.reset_idx();
+                    self.set_past_valid(true); // Data at idx and above is now valid past data
+                }
             }
-        } else {
-            Some(self.arr()[idx])
+        
+            /// Returns the most recently pushed element in the buffer
+            #[inline]
+            pub fn recent(&self) -> N {
+                let idx = if self.idx() == 0 {
+                    self.arr().len() - 1
+                } else {
+                    self.idx() - 1
+                };
+                self.arr()[idx]
+            }
+        
+            /// Returns the oldest element in the buffer
+            pub fn last(&self) -> N {
+                let idx = if self.past_valid() {
+                    self.idx()
+                } else {
+                    0
+                };
+                self.arr()[idx]
+            }
+        
+            /// Returns the second most recent element in the buffer
+            /// Will return a default value if 0 or 1 elements have been pushed
+            pub fn prev(&self) -> N {
+                let idx = if self.idx() == 0 {
+                    self.arr().len() - 2
+                } else if self.idx() == 1 {
+                    self.arr().len() - 1
+                } else {
+                    self.idx() - 2
+                };
+                self.arr()[idx]
+            }
+            
+            /// Returns the length of the underlying array
+            #[inline]
+            pub fn len(&self) -> usize {
+                self.arr().len()
+            }
+        
+            // TODO needs testing and is wrong
+            pub fn nth(&self, idx: usize) -> Option<N> {
+                if idx >= self.arr().len() || (idx >= self.idx() && !self.past_valid()) { 
+                    None
+                } else if self.past_valid() {
+                    let wrapped_idx = self.idx() as isize - 1 - idx as isize;
+                    if wrapped_idx >= 0 {
+                        Some(self.arr()[wrapped_idx as usize - 1])
+                    } else {
+                        Some(self.arr()[self.idx() + idx + 1])
+                    }
+                } else {
+                    Some(self.arr()[idx])
+                }
+            }
+        
+            /// Returns true if the most recent item was written to the last index of the internal array
+            pub fn end_of_internal(&self) -> bool {
+                self.idx() == 0 && self.past_valid()
+            }
+        
+            pub fn iter(&self) -> BumpBufIterator<N> {
+                BumpBufIterator {
+                    current: if self.past_valid() { self.idx() } else { 0 },
+                    end: self.idx(),
+                    looped: false,
+                    use_past: self.past_valid(), 
+                    buf: self.arr()
+                }
+            }
         }
-    }
-
-    /// Returns true if the internal buffer was just filled
-    fn end_of_internal(&self) -> bool {
-        self.idx() == 0 && self.past_valid()
-    }
-
-    fn iter(&self) -> BumpBufIterator<N> {
-        BumpBufIterator {
-            current: if self.past_valid() { self.idx() } else { 0 },
-            end: self.idx(),
-            looped: false,
-            use_past: self.past_valid(), 
-            buf: self.arr()
-        }
-    }
+    };
 }
 
 pub struct BumpBufIterator<'a, N: Default + Copy> {
@@ -191,6 +161,7 @@ create_bump_buf!(BumpBuf16, 16);
 create_bump_buf!(BumpBuf32, 32);
 create_bump_buf!(BumpBuf50, 50);
 create_bump_buf!(BumpBuf64, 64);
+create_bump_buf!(BumpBuf100, 100);
 create_bump_buf!(BumpBuf128, 128);
 create_bump_buf!(BumpBuf250, 250);
 create_bump_buf!(BumpBuf256, 256);
@@ -211,7 +182,6 @@ mod test {
         assert_eq!(bump_buf.recent(), range as f32);
         assert_eq!(bump_buf.prev(), (range - 1) as f32);
         assert_eq!(bump_buf.last(), (range - 511) as f32);
-        // assert_eq!(bump_buf.calc_slope(), 1f32);
     }
 
     #[test]
