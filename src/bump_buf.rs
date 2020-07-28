@@ -96,22 +96,6 @@ macro_rules! create_bump_buf {
                 self.arr().len()
             }
         
-            // TODO needs testing and is wrong
-            pub fn nth(&self, idx: usize) -> Option<N> {
-                if idx >= self.arr().len() || (idx >= self.idx() && !self.past_valid()) { 
-                    None
-                } else if self.past_valid() {
-                    let wrapped_idx = self.idx() as isize - 1 - idx as isize;
-                    if wrapped_idx >= 0 {
-                        Some(self.arr()[wrapped_idx as usize - 1])
-                    } else {
-                        Some(self.arr()[self.idx() + idx + 1])
-                    }
-                } else {
-                    Some(self.arr()[idx])
-                }
-            }
-        
             /// Returns true if the most recent item was written to the last index of the internal array
             pub fn end_of_internal(&self) -> bool {
                 self.idx() == 0 && self.past_valid()
@@ -175,7 +159,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_slope() {
+    fn test_push() {
         let mut bump_buf = BumpBuf512::new();
         let range = 51209;
         (0..=51209).into_iter().for_each(|v| bump_buf.push(v as f32));
@@ -186,22 +170,11 @@ mod test {
     }
 
     #[test]
-    fn test_nth() {
-        let mut bump_buf = BumpBuf8::new();
-        (0..12).into_iter().for_each(|v| bump_buf.push(v));
-
-        assert_eq!(bump_buf.nth(1), Some(5));
-        assert_eq!(bump_buf.nth(8), Some(11));
-        assert_eq!(bump_buf.nth(9), None);
-    }
-
-    #[test]
     fn test_iterator() {
         let mut bump_buf = BumpBuf8::<u32>::new();
         (0..=200).into_iter().for_each(|n| bump_buf.push(n));
         bump_buf.iter().for_each(|n| println!("{}", n));
         assert_eq!(bump_buf.last(), bump_buf.iter().nth(0).unwrap());
         assert_eq!(bump_buf.recent(), bump_buf.iter().nth(7).unwrap());
-        // assert_eq!(bump_buf.nth(4).unwrap(), bump_buf.iter().nth(4).unwrap());
     }
 }
