@@ -4,6 +4,7 @@ pub use crate::bump_buf::{
     BumpBufIterator,
     BumpBuf8,
     BumpBuf16,
+    BumpBuf25,
     BumpBuf32,
     BumpBuf50,
     BumpBuf64,

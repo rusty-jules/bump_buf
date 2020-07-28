@@ -158,6 +158,7 @@ impl<'a, N: Default + Copy> Iterator for BumpBufIterator<'a, N> {
 
 create_bump_buf!(BumpBuf8, 8);
 create_bump_buf!(BumpBuf16, 16);
+create_bump_buf!(BumpBuf25, 25);
 create_bump_buf!(BumpBuf32, 32);
 create_bump_buf!(BumpBuf50, 50);
 create_bump_buf!(BumpBuf64, 64);
